@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation. All rights reserved. Licensed under the MIT license.
 // See LICENSE in the project root for license information.
 
-import * as colors from 'colors';
 import * as path from 'path';
 import * as rushLib from '@microsoft/rush-lib';
+import { Terminal } from '@microsoft/node-core-library';
 
 type CommandName = 'rush' | 'rushx' | undefined;
 
@@ -15,26 +15,34 @@ type CommandName = 'rush' | 'rushx' | undefined;
  * @microsoft/rush-lib.
  */
 export class RushCommandSelector {
-  public static failIfNotInvokedAsRush(version: string): void {
+  public static failIfNotInvokedAsRush(terminal: Terminal, version: string): void {
     if (RushCommandSelector._getCommandName() === 'rushx') {
-      RushCommandSelector._failWithError(`This repository is using Rush version ${version}`
-        + ` which does not support the "rushx" command`);
+      RushCommandSelector._failWithError(
+        terminal,
+        `This repository is using Rush version ${version} which does not support the "rushx" command`
+      );
     }
   }
 
-  // tslint:disable-next-line:no-any
-  public static execute(launcherVersion: string, isManaged: boolean, selectedRushLib: any): void {
+  public static execute(
+    terminal: Terminal,
+    launcherVersion: string,
+    isManaged: boolean,
+    selectedRushLib: any // tslint:disable-line:no-any
+  ): void {
     const Rush: typeof rushLib.Rush = selectedRushLib.Rush;
 
     if (!Rush) {
       // This should be impossible unless we somehow loaded an unexpected version
-      RushCommandSelector._failWithError(`Unable to find the "Rush" entry point in @microsoft/rush-lib`);
+      RushCommandSelector._failWithError(terminal, `Unable to find the "Rush" entry point in @microsoft/rush-lib`);
     }
 
     if (RushCommandSelector._getCommandName() === 'rushx') {
       if (!Rush.launchRushX) {
-        RushCommandSelector._failWithError(`This repository is using Rush version ${Rush.version}`
-          + ` which does not support the "rushx" command`);
+        RushCommandSelector._failWithError(
+          terminal,
+          `This repository is using Rush version ${Rush.version} which does not support the "rushx" command`
+        );
       }
       Rush.launchRushX(launcherVersion, isManaged);
     } else {
@@ -42,8 +50,8 @@ export class RushCommandSelector {
     }
   }
 
-  private static _failWithError(message: string): never {
-    console.log(colors.red(message));
+  private static _failWithError(terminal: Terminal, message: string): never {
+    terminal.writeErrorLine(message);
     return process.exit(1);
   }
 

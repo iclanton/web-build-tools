@@ -4,7 +4,10 @@
 import * as path from 'path';
 import * as semver from 'semver';
 
-import { LockFile } from '@microsoft/node-core-library';
+import {
+  LockFile,
+  Terminal
+} from '@microsoft/node-core-library';
 import { Utilities } from '@microsoft/rush-lib/lib/utilities/Utilities';
 import {
   _LastInstallFlag,
@@ -25,8 +28,11 @@ export class RushVersionSelector {
     this._currentPackageVersion = currentPackageVersion;
   }
 
-  public ensureRushVersionInstalled(version: string,
-    configuration: MinimalRushConfiguration | undefined): Promise<void> {
+  public ensureRushVersionInstalled(
+    terminal: Terminal,
+    version: string,
+    configuration: MinimalRushConfiguration | undefined
+  ): Promise<void> {
 
     const isLegacyRushVersion: boolean = semver.lt(version, '4.0.0');
     const expectedRushPath: string = path.join(this._rushGlobalFolder.nodeSpecificPath, `rush-${version}`);
@@ -41,17 +47,17 @@ export class RushVersionSelector {
     if (!installMarker.isValid()) {
       installPromise = installPromise.then(() => {
         // Need to install Rush
-        console.log(`Rush version ${version} is not currently installed. Installing...`);
+        terminal.writeLine(`Rush version ${version} is not currently installed. Installing...`);
 
         const resourceName: string = `rush-${version}`;
 
-        console.log(`Trying to acquire lock for ${resourceName}`);
+        terminal.writeLine(`Trying to acquire lock for ${resourceName}`);
 
         return LockFile.acquire(expectedRushPath, resourceName)
           .then((lock: LockFile) => {
 
             if (installMarker.isValid()) {
-              console.log('Another process performed the installation.');
+              terminal.writeLine('Another process performed the installation.');
             } else {
               Utilities.installPackageInDirectory({
                 directory: expectedRushPath,
@@ -69,7 +75,7 @@ export class RushVersionSelector {
                 suppressOutput: true
               });
 
-              console.log(`Successfully installed Rush version ${version} in ${expectedRushPath}.`);
+              terminal.writeLine(`Successfully installed Rush version ${version} in ${expectedRushPath}.`);
 
               // If we've made it here without exception, write the flag file
               installMarker.create();
@@ -84,7 +90,7 @@ export class RushVersionSelector {
       if (semver.lt(version, '3.0.20')) {
         // In old versions, requiring the entry point invoked the command-line parser immediately,
         // so fail if "rushx" was used
-        RushCommandSelector.failIfNotInvokedAsRush(version);
+        RushCommandSelector.failIfNotInvokedAsRush(terminal, version);
         require(path.join(
           expectedRushPath,
           'node_modules',
@@ -96,7 +102,7 @@ export class RushVersionSelector {
       } else if (semver.lt(version, '4.0.0')) {
         // In old versions, requiring the entry point invoked the command-line parser immediately,
         // so fail if "rushx" was used
-        RushCommandSelector.failIfNotInvokedAsRush(version);
+        RushCommandSelector.failIfNotInvokedAsRush(terminal, version);
         require(path.join(
           expectedRushPath,
           'node_modules',
@@ -115,7 +121,7 @@ export class RushVersionSelector {
           'lib',
           'index'
         ));
-        RushCommandSelector.execute(this._currentPackageVersion, true, rushCliEntrypoint);
+        RushCommandSelector.execute(terminal, this._currentPackageVersion, true, rushCliEntrypoint);
       }
     });
   }
