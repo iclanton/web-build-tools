@@ -451,6 +451,7 @@ class Terminal {
   writeError(...messageParts: (string | IColorableSequence)[]): void;
   writeErrorLine(...messageParts: (string | IColorableSequence)[]): void;
   writeLine(...messageParts: (string | IColorableSequence)[]): void;
+  writeRaw(severity: TerminalProviderSeverity, ...messageParts: (string | IColorableSequence)[]): void;
   writeVerbose(...messageParts: (string | IColorableSequence)[]): void;
   writeVerboseLine(...messageParts: (string | IColorableSequence)[]): void;
   writeWarning(...messageParts: (string | IColorableSequence)[]): void;

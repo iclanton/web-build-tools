@@ -12,6 +12,10 @@ import {
   eolSequence
 } from './Colors';
 
+export interface IWriteOptions {
+  forcePreserveColors: boolean;
+}
+
 /**
  * This class facilitates writing to a console.
  *
@@ -39,6 +43,13 @@ export class Terminal {
     if (this._providers.has(provider)) {
       this._providers.delete(provider);
     }
+  }
+
+  /**
+   * Write a message without modifying the formatting with the specififed severity.
+   */
+  public writeRaw(severity: TerminalProviderSeverity, ...messageParts: (string | IColorableSequence)[]): void {
+    this._writeSegmentsToProviders(messageParts, severity);
   }
 
   /**
