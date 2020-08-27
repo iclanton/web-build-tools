@@ -62,12 +62,28 @@ interface IConfigurationFileCacheEntry<TConfigurationFile> {
 }
 
 /**
+ * @beta
+ */
+export interface IJsonPathMetadataToken {
+  /**
+   * The token name. Must only contain alphanumeric characters
+   */
+  token: string;
+
+  /**
+   * The value that the token will be replaced with
+   */
+  tokenValue: string;
+}
+
+/**
  * Used to specify how node(s) in a JSON object should be processed after being loaded.
  *
  * @beta
  */
 export interface IJsonPathMetadata {
   pathResolutionMethod?: PathResolutionMethod;
+  tokens?: IJsonPathMetadataToken[];
 }
 
 /**
@@ -118,12 +134,14 @@ export interface IOriginalValueOptions<TParentProperty> {
   propertyName: keyof TParentProperty;
 }
 
+type JsonPathProcessor = (originalValue: string, configurationFilePath: string) => string;
+
 /**
  * @beta
  */
 export class ConfigurationFile<TConfigurationFile> {
   private readonly _schema: JsonSchema;
-  private readonly _jsonPathMetadata: IJsonPathsMetadata;
+  private readonly _jsonPathMetadata: Map<string, JsonPathProcessor>;
   private readonly _propertyInheritanceTypes: IPropertyInheritanceTypes<TConfigurationFile>;
 
   private readonly _configurationFileCache: Map<
@@ -143,8 +161,44 @@ export class ConfigurationFile<TConfigurationFile> {
     }
 
     this._schema = jsonSchema;
-    this._jsonPathMetadata = options?.jsonPathMetadata || {};
     this._propertyInheritanceTypes = options?.propertyInheritanceTypes || {};
+
+    this._jsonPathMetadata = new Map<string, JsonPathProcessor>();
+    for (const [jsonPath, metadata] of Object.entries(options?.jsonPathMetadata || {})) {
+      const replacers: Map<RegExp, string> = new Map<RegExp, string>();
+      const pathResolutionMethod: PathResolutionMethod | undefined = metadata.pathResolutionMethod;
+
+      if (metadata.tokens?.length) {
+        const existingTokens: Set<string> = new Set<string>();
+        for (const { token, tokenValue } of metadata.tokens) {
+          if (!token.match(/^[A-z0-9]+$/)) {
+            throw new Error(
+              `Token "${token}" in metadata for jsonPath "${jsonPath}" must only contain alphanumeric characters.`
+            );
+          }
+
+          if (existingTokens.has(token)) {
+            throw new Error(
+              `Token "${token}" in appears multiple times in metadata for jsonPath "${jsonPath}".`
+            );
+          }
+
+          existingTokens.add(token);
+
+          replacers.set(new RegExp(`\\<${token}\\>`, 'g'), tokenValue);
+        }
+      }
+
+      if (replacers.size > 0 || pathResolutionMethod !== undefined) {
+        this._jsonPathMetadata.set(jsonPath, (originalValue: string, configurationFilePath: string) => {
+          for (const [tokenRegex, tokenValue] of replacers.entries()) {
+            originalValue = originalValue.replace(tokenRegex, tokenValue);
+          }
+
+          return this._resolvePathProperty(configurationFilePath, originalValue, pathResolutionMethod);
+        });
+      }
+    }
   }
 
   public async loadConfigurationFileAsync(configurationFilePath: string): Promise<TConfigurationFile> {
@@ -233,18 +287,15 @@ export class ConfigurationFile<TConfigurationFile> {
 
         this._annotateProperties(resolvedConfigurationFilePath, configurationJson);
 
-        for (const [jsonPath, metadata] of Object.entries(this._jsonPathMetadata)) {
+        for (const [jsonPath, processorFunction] of this._jsonPathMetadata.entries()) {
           JSONPath({
             path: jsonPath,
             json: configurationJson,
             callback: (payload: unknown, payloadType: string, fullPayload: IJsonPathCallbackObject) => {
-              if (metadata.pathResolutionMethod !== undefined) {
-                fullPayload.parent[fullPayload.parentProperty] = this._resolvePathProperty(
-                  resolvedConfigurationFilePath,
-                  fullPayload.value,
-                  metadata.pathResolutionMethod
-                );
-              }
+              fullPayload.parent[fullPayload.parentProperty] = processorFunction(
+                fullPayload.value,
+                resolvedConfigurationFilePath
+              );
             },
             otherTypeCallback: () => {
               throw new Error('@other() tags are not supported');

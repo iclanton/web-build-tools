@@ -28,6 +28,14 @@ export interface IConfigurationFileOptions<TConfigurationFile> {
 export interface IJsonPathMetadata {
     // (undocumented)
     pathResolutionMethod?: PathResolutionMethod;
+    // (undocumented)
+    tokens?: IJsonPathMetadataToken[];
+}
+
+// @beta (undocumented)
+export interface IJsonPathMetadataToken {
+    token: string;
+    tokenValue: string;
 }
 
 // @beta

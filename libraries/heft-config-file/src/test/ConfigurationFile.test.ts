@@ -316,6 +316,77 @@ describe('ConfigLoader', () => {
     });
   });
 
+  describe('A config file with a token', () => {
+    const configFileFolder: string = nodeJsPath.resolve(__dirname, 'configFileWithToken');
+    const configFilePath: string = nodeJsPath.resolve(configFileFolder, 'configFileWithToken.json');
+    const schemaPath: string = nodeJsPath.resolve(configFileFolder, 'configFileWithToken.schema.json');
+
+    interface IConfigFileWithToken {
+      thing: string;
+      otherThing: string;
+    }
+
+    it('Correctly loads the config file without token replacement', async () => {
+      const configFileLoader: ConfigurationFile<IConfigFileWithToken> = new ConfigurationFile<
+        IConfigFileWithToken
+      >(schemaPath);
+      const loadedConfigFile: IConfigFileWithToken = await configFileLoader.loadConfigurationFileAsync(
+        configFilePath
+      );
+      const expectedConfigFile: IConfigFileWithToken = {
+        thing: '<rootPath>/foo/bar.wsdl',
+        otherThing: '<tokenA> <tokenB> <tokenA>'
+      };
+
+      expect(JSON.stringify(loadedConfigFile)).toEqual(JSON.stringify(expectedConfigFile));
+      expect(configFileLoader.getObjectSourceFilePath(loadedConfigFile)).toEqual(configFilePath);
+      expect(
+        configFileLoader.getPropertyOriginalValue({ parentObject: loadedConfigFile, propertyName: 'thing' })
+      ).toEqual('<rootPath>/foo/bar.wsdl');
+      expect(
+        configFileLoader.getPropertyOriginalValue({
+          parentObject: loadedConfigFile,
+          propertyName: 'otherThing'
+        })
+      ).toEqual('<tokenA> <tokenB> <tokenA>');
+    });
+
+    it('Correctly loads the config file with token replacement', async () => {
+      const configFileLoader: ConfigurationFile<IConfigFileWithToken> = new ConfigurationFile<
+        IConfigFileWithToken
+      >(schemaPath, {
+        jsonPathMetadata: {
+          thing: { tokens: [{ token: 'rootPath', tokenValue: '/var/etc' }] },
+          otherThing: {
+            tokens: [
+              { token: 'tokenA', tokenValue: 'AAA' },
+              { token: 'tokenB', tokenValue: 'BBB' }
+            ]
+          }
+        }
+      });
+      const loadedConfigFile: IConfigFileWithToken = await configFileLoader.loadConfigurationFileAsync(
+        configFilePath
+      );
+      const expectedConfigFile: IConfigFileWithToken = {
+        thing: '/var/etc/foo/bar.wsdl',
+        otherThing: 'AAA BBB AAA'
+      };
+
+      expect(JSON.stringify(loadedConfigFile)).toEqual(JSON.stringify(expectedConfigFile));
+      expect(configFileLoader.getObjectSourceFilePath(loadedConfigFile)).toEqual(configFilePath);
+      expect(
+        configFileLoader.getPropertyOriginalValue({ parentObject: loadedConfigFile, propertyName: 'thing' })
+      ).toEqual('<rootPath>/foo/bar.wsdl');
+      expect(
+        configFileLoader.getPropertyOriginalValue({
+          parentObject: loadedConfigFile,
+          propertyName: 'otherThing'
+        })
+      ).toEqual('<tokenA> <tokenB> <tokenA>');
+    });
+  });
+
   describe('error cases', () => {
     const errorCasesFolder: string = nodeJsPath.join(__dirname, 'errorCases');
 
@@ -391,6 +462,28 @@ describe('ConfigLoader', () => {
       } catch (e) {
         expect(e).toMatchSnapshot();
       }
+    });
+
+    it('Throws an error when there are duplicate tokens', () => {
+      const schemaPath: string = nodeJsPath.resolve(
+        __dirname,
+        'simplestConfigFile',
+        'simplestConfigFile.schema.json'
+      );
+
+      expect(
+        () =>
+          new ConfigurationFile(schemaPath, {
+            jsonPathMetadata: {
+              foo: {
+                tokens: [
+                  { token: 'abc', tokenValue: '123' },
+                  { token: 'abc', tokenValue: 'ABC' }
+                ]
+              }
+            }
+          })
+      ).toThrowErrorMatchingSnapshot();
     });
   });
 });

@@ -5,6 +5,7 @@ export {
   ConfigurationFile,
   IConfigurationFileOptions,
   IJsonPathMetadata,
+  IJsonPathMetadataToken,
   IJsonPathsMetadata,
   InheritanceType,
   IOriginalValueOptions,

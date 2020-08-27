@@ -1,0 +1,5 @@
+{
+  "$schema": "http://schema.net/",
+  "thing": "<rootPath>/foo/bar.wsdl",
+  "otherThing": "<tokenA> <tokenB> <tokenA>"
+}
