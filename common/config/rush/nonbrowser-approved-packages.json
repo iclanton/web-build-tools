@@ -299,6 +299,10 @@
       "allowedCategories": [ "libraries", "tests" ]
     },
     {
+      "name": "backfill",
+      "allowedCategories": [ "libraries" ]
+    },
+    {
       "name": "builtin-modules",
       "allowedCategories": [ "libraries" ]
     },
