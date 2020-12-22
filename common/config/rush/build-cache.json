@@ -1,4 +1,3 @@
 {
-  "cacheProvider": "filesystem",
-  "projectOutputFolderNames": ["lib", "lib-amd", "lib-commonjs", "lib-esnext", "lib-umd", "dist"]
+  "cacheProvider": "filesystem"
 }
