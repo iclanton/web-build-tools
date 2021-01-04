@@ -4,13 +4,14 @@
 import { BuildCacheConfiguration } from '../api/BuildCacheConfiguration';
 import { RushConfiguration } from '../api/RushConfiguration';
 import { RushConfigurationProject } from '../api/RushConfigurationProject';
-import { ProjectBuilder, convertSlashesForWindows } from '../logic/taskRunner/ProjectBuilder';
+import { ProjectBuilder, convertSlashesForWindows, BuildMode } from '../logic/taskRunner/ProjectBuilder';
 import { PackageChangeAnalyzer } from './PackageChangeAnalyzer';
 import { TaskCollection } from './taskRunner/TaskCollection';
 
 export interface ITaskSelectorConstructor {
   rushConfiguration: RushConfiguration;
   buildCacheConfiguration: BuildCacheConfiguration | undefined;
+  buildMode: BuildMode;
   toProjects: ReadonlyArray<RushConfigurationProject>;
   fromProjects: ReadonlyArray<RushConfigurationProject>;
   commandToRun: string;
@@ -186,6 +187,7 @@ export class TaskSelector {
         rushProject: project,
         rushConfiguration: this._options.rushConfiguration,
         buildCacheConfiguration: this._options.buildCacheConfiguration,
+        buildMode: this._options.buildMode,
         commandToRun: this._getScriptToRun(project),
         isIncrementalBuildAllowed: this._options.isIncrementalBuildAllowed,
         packageChangeAnalyzer: this._packageChangeAnalyzer,

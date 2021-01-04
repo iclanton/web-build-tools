@@ -40,10 +40,16 @@ export interface IProjectBuildDeps extends IPackageDeps {
   arguments: string;
 }
 
+export enum BuildMode {
+  BuildAndCache,
+  FillCacheWithAlreadyBuiltOutput
+}
+
 export interface IProjectBuilderOptions {
   rushProject: RushConfigurationProject;
   rushConfiguration: RushConfiguration;
   buildCacheConfiguration: BuildCacheConfiguration | undefined;
+  buildMode: BuildMode;
   commandToRun: string;
   isIncrementalBuildAllowed: boolean;
   packageChangeAnalyzer: PackageChangeAnalyzer;
@@ -79,6 +85,7 @@ export class ProjectBuilder extends BaseBuilder {
   private _rushProject: RushConfigurationProject;
   private _rushConfiguration: RushConfiguration;
   private _buildCacheConfiguration: BuildCacheConfiguration | undefined;
+  private _buildMode: BuildMode;
   private _commandToRun: string;
   private _packageChangeAnalyzer: PackageChangeAnalyzer;
   private _packageDepsFilename: string;
@@ -88,6 +95,7 @@ export class ProjectBuilder extends BaseBuilder {
     this._rushProject = options.rushProject;
     this._rushConfiguration = options.rushConfiguration;
     this._buildCacheConfiguration = options.buildCacheConfiguration;
+    this._buildMode = options.buildMode;
     this._commandToRun = options.commandToRun;
     this.isIncrementalBuildAllowed = options.isIncrementalBuildAllowed;
     this._packageChangeAnalyzer = options.packageChangeAnalyzer;
@@ -230,112 +238,140 @@ export class ProjectBuilder extends BaseBuilder {
         }
       }
 
-      const restoreFromCacheSuccess:
-        | boolean
-        | undefined = await projectBuildCache?.tryRestoreFromCacheAsync();
-
-      if (restoreFromCacheSuccess) {
-        return TaskStatus.FromCache;
-      } else if (isPackageUnchanged && this.isIncrementalBuildAllowed) {
-        return TaskStatus.Skipped;
-      } else {
-        // If the deps file exists, remove it before starting a build.
-        FileSystem.deleteFile(currentDepsPath);
-
-        // TODO: Remove legacyDepsPath with the next major release of Rush
-        const legacyDepsPath: string = path.join(this._rushProject.projectFolder, 'package-deps.json');
-        // Delete the legacy package-deps.json
-        FileSystem.deleteFile(legacyDepsPath);
-
-        if (!this._commandToRun) {
-          // Write deps on success.
-          if (projectBuildDeps) {
-            JsonFile.save(projectBuildDeps, currentDepsPath, {
-              ensureFolderExists: true
-            });
-          }
-
-          return TaskStatus.Success;
-        }
-
-        // Run the task
-        terminal.writeLine('Invoking: ' + this._commandToRun);
-
-        const task: child_process.ChildProcess = Utilities.executeLifecycleCommandAsync(this._commandToRun, {
-          rushConfiguration: this._rushConfiguration,
-          workingDirectory: projectFolder,
-          initCwd: this._rushConfiguration.commonTempFolder,
-          handleOutput: true,
-          environmentPathOptions: {
-            includeProjectBin: true
-          }
-        });
-
-        // Hook into events, in order to get live streaming of build log
-        if (task.stdout !== null) {
-          task.stdout.on('data', (data: Buffer) => {
-            const text: string = data.toString();
-            collatedTerminal.writeChunk({ text, kind: TerminalChunkKind.Stdout });
-          });
-        }
-        if (task.stderr !== null) {
-          task.stderr.on('data', (data: Buffer) => {
-            const text: string = data.toString();
-            collatedTerminal.writeChunk({ text, kind: TerminalChunkKind.Stderr });
-            hasWarningOrError = true;
-          });
-        }
-
-        let status: TaskStatus = await new Promise(
-          (resolve: (status: TaskStatus) => void, reject: (error: TaskError) => void) => {
-            task.on('close', (code: number) => {
-              try {
-                if (code !== 0) {
-                  reject(new TaskError('error', `Returned error code: ${code}`));
-                } else if (hasWarningOrError) {
-                  resolve(TaskStatus.SuccessWithWarning);
-                } else {
-                  resolve(TaskStatus.Success);
-                }
-              } catch (error) {
-                reject(error);
-              }
-            });
-          }
-        );
-
-        if (status === TaskStatus.Success && projectBuildDeps) {
-          // Write deps on success.
-          const writeProjectStatePromise: Promise<boolean> = JsonFile.saveAsync(
-            projectBuildDeps,
-            currentDepsPath,
-            {
-              ensureFolderExists: true
+      switch (this._buildMode) {
+        case BuildMode.FillCacheWithAlreadyBuiltOutput: {
+          if (projectBuildCache && isPackageUnchanged) {
+            const cacheWriteSuccess: boolean = await projectBuildCache.trySetCacheEntryAsync();
+            if (!cacheWriteSuccess || terminalProvider.hasErrors) {
+              return TaskStatus.Failure;
+            } else if (terminalProvider.hasWarnings) {
+              return TaskStatus.SuccessWithWarning;
+            } else {
+              return TaskStatus.Success;
             }
-          );
-
-          const setCacheEntryPromise:
-            | Promise<boolean>
-            | undefined = projectBuildCache?.trySetCacheEntryAsync();
-
-          const [, cacheWriteSuccess] = await Promise.all([writeProjectStatePromise, setCacheEntryPromise]);
-
-          if (terminalProvider.hasErrors) {
-            status = TaskStatus.Failure;
-          } else if (cacheWriteSuccess === false || terminalProvider.hasWarnings) {
-            status = TaskStatus.SuccessWithWarning;
+          } else {
+            return TaskStatus.Skipped;
           }
         }
 
-        normalizeNewlineTransform.close();
+        case BuildMode.BuildAndCache: {
+          const restoreFromCacheSuccess:
+            | boolean
+            | undefined = await projectBuildCache?.tryRestoreFromCacheAsync();
+          if (restoreFromCacheSuccess) {
+            return TaskStatus.FromCache;
+          } else if (isPackageUnchanged && this.isIncrementalBuildAllowed) {
+            return TaskStatus.Skipped;
+          } else {
+            // If the deps file exists, remove it before starting a build.
+            FileSystem.deleteFile(currentDepsPath);
 
-        // If the pipeline is wired up correctly, then closing normalizeNewlineTransform should
-        // have closed projectLogWritable.
-        if (projectLogWritable.isOpen) {
-          throw new InternalError('The output file handle was not closed');
+            // TODO: Remove legacyDepsPath with the next major release of Rush
+            const legacyDepsPath: string = path.join(this._rushProject.projectFolder, 'package-deps.json');
+            // Delete the legacy package-deps.json
+            FileSystem.deleteFile(legacyDepsPath);
+
+            if (!this._commandToRun) {
+              // Write deps on success.
+              if (projectBuildDeps) {
+                JsonFile.save(projectBuildDeps, currentDepsPath, {
+                  ensureFolderExists: true
+                });
+              }
+
+              return TaskStatus.Success;
+            }
+
+            // Run the task
+            terminal.writeLine('Invoking: ' + this._commandToRun);
+
+            const task: child_process.ChildProcess = Utilities.executeLifecycleCommandAsync(
+              this._commandToRun,
+              {
+                rushConfiguration: this._rushConfiguration,
+                workingDirectory: projectFolder,
+                initCwd: this._rushConfiguration.commonTempFolder,
+                handleOutput: true,
+                environmentPathOptions: {
+                  includeProjectBin: true
+                }
+              }
+            );
+
+            // Hook into events, in order to get live streaming of build log
+            if (task.stdout !== null) {
+              task.stdout.on('data', (data: Buffer) => {
+                const text: string = data.toString();
+                collatedTerminal.writeChunk({ text, kind: TerminalChunkKind.Stdout });
+              });
+            }
+            if (task.stderr !== null) {
+              task.stderr.on('data', (data: Buffer) => {
+                const text: string = data.toString();
+                collatedTerminal.writeChunk({ text, kind: TerminalChunkKind.Stderr });
+                hasWarningOrError = true;
+              });
+            }
+
+            let status: TaskStatus = await new Promise(
+              (resolve: (status: TaskStatus) => void, reject: (error: TaskError) => void) => {
+                task.on('close', (code: number) => {
+                  try {
+                    if (code !== 0) {
+                      reject(new TaskError('error', `Returned error code: ${code}`));
+                    } else if (hasWarningOrError) {
+                      resolve(TaskStatus.SuccessWithWarning);
+                    } else {
+                      resolve(TaskStatus.Success);
+                    }
+                  } catch (error) {
+                    reject(error);
+                  }
+                });
+              }
+            );
+
+            if (status === TaskStatus.Success && projectBuildDeps) {
+              // Write deps on success.
+              const writeProjectStatePromise: Promise<boolean> = JsonFile.saveAsync(
+                projectBuildDeps,
+                currentDepsPath,
+                {
+                  ensureFolderExists: true
+                }
+              );
+
+              const setCacheEntryPromise:
+                | Promise<boolean>
+                | undefined = projectBuildCache?.trySetCacheEntryAsync();
+
+              const [, cacheWriteSuccess] = await Promise.all([
+                writeProjectStatePromise,
+                setCacheEntryPromise
+              ]);
+
+              if (terminalProvider.hasErrors) {
+                status = TaskStatus.Failure;
+              } else if (cacheWriteSuccess === false || terminalProvider.hasWarnings) {
+                status = TaskStatus.SuccessWithWarning;
+              }
+            }
+
+            normalizeNewlineTransform.close();
+
+            // If the pipeline is wired up correctly, then closing normalizeNewlineTransform should
+            // have closed projectLogWritable.
+            if (projectLogWritable.isOpen) {
+              throw new InternalError('The output file handle was not closed');
+            }
+
+            return status;
+          }
         }
 
-        return status;
+        default: {
+          throw new Error(`Unexpected build mode "${this._buildMode}"`);
+        }
       }
     } finally {
       projectLogWritable.close();

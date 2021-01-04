@@ -2,9 +2,13 @@
 // See LICENSE in the project root for license information.
 
 import * as os from 'os';
-import colors from 'colors';
 
-import { AlreadyReportedError } from '@rushstack/node-core-library';
+import {
+  AlreadyReportedError,
+  Colors,
+  ConsoleTerminalProvider,
+  Terminal
+} from '@rushstack/node-core-library';
 import {
   CommandLineFlagParameter,
   CommandLineStringParameter,
@@ -26,6 +30,7 @@ import { EnvironmentVariableNames } from '../../api/EnvironmentConfiguration';
 import { LastLinkFlag, LastLinkFlagFactory } from '../../api/LastLinkFlag';
 import { IRushConfigurationProjectJson } from '../../api/RushConfigurationProject';
 import { BuildCacheConfiguration } from '../../api/BuildCacheConfiguration';
+import { BuildMode } from '../../logic/taskRunner/ProjectBuilder';
 
 /**
  * Constructor parameters for BulkScriptAction.
@@ -66,6 +71,7 @@ export class BulkScriptAction extends BaseScriptAction {
   private _verboseParameter!: CommandLineFlagParameter;
   private _parallelismParameter: CommandLineStringParameter | undefined;
   private _ignoreHooksParameter!: CommandLineFlagParameter;
+  private _fillCacheOnlyParameter!: CommandLineFlagParameter;
   private _ignoreDependencyOrder: boolean;
   private _allowWarningsInSuccessfulBuild: boolean;
 
@@ -80,6 +86,8 @@ export class BulkScriptAction extends BaseScriptAction {
   }
 
   public async runAsync(): Promise<void> {
+    const terminal: Terminal = new Terminal(new ConsoleTerminalProvider());
+
     // TODO: Replace with last-install.flag when "rush link" and "rush unlink" are deprecated
     const lastLinkFlag: LastLinkFlag = LastLinkFlagFactory.getCommonTempFlag(this.rushConfiguration);
     if (!lastLinkFlag.isValid()) {
@@ -110,13 +118,29 @@ export class BulkScriptAction extends BaseScriptAction {
 
     const changedProjectsOnly: boolean = this._isIncrementalBuildAllowed && this._changedProjectsOnly.value;
 
-    const buildCacheConfiguration:
-      | BuildCacheConfiguration
-      | undefined = await BuildCacheConfiguration.loadFromDefaultPathAsync(this.rushConfiguration);
+    let buildCacheConfiguration: BuildCacheConfiguration | undefined;
+    if (this.rushConfiguration.experimentsConfiguration.configuration.buildCache) {
+      buildCacheConfiguration = await BuildCacheConfiguration.loadFromDefaultPathAsync(
+        this.rushConfiguration
+      );
+    }
+
+    if (buildCacheConfiguration && this._fillCacheOnlyParameter.value) {
+      terminal.writeErrorLine(
+        `The ${this._fillCacheOnlyParameter.longName} parameter applies only ` +
+          'in repos with the build cache experiment enabled and the feature configured.'
+      );
+      throw new AlreadyReportedError();
+    }
+
+    const buildMode: BuildMode = this._fillCacheOnlyParameter.value
+      ? BuildMode.FillCacheWithAlreadyBuiltOutput
+      : BuildMode.BuildAndCache;
 
     const taskSelector: TaskSelector = new TaskSelector({
       rushConfiguration: this.rushConfiguration,
       buildCacheConfiguration,
+      buildMode,
       toProjects: this.mergeProjectsWithVersionPolicy(this._toFlag, this._toVersionPolicy),
       fromProjects: this.mergeProjectsWithVersionPolicy(this._fromFlag, this._fromVersionPolicy),
       commandToRun: this._commandToRun,
@@ -142,24 +166,24 @@ export class BulkScriptAction extends BaseScriptAction {
       await taskRunner.executeAsync();
 
       stopwatch.stop();
-      console.log(colors.green(`rush ${this.actionName} (${stopwatch.toString()})`));
+      terminal.writeLine(Colors.green(`rush ${this.actionName} (${stopwatch.toString()})`));
 
       this._doAfterTask(stopwatch, true);
     } catch (error) {
       stopwatch.stop();
 
       if (error instanceof AlreadyReportedError) {
-        console.log(`rush ${this.actionName} (${stopwatch.toString()})`);
+        terminal.writeLine(`rush ${this.actionName} (${stopwatch.toString()})`);
       } else {
         if (error && error.message) {
           if (this.parser.isDebug) {
-            console.log('Error: ' + error.stack);
+            terminal.writeLine('Error: ' + error.stack);
           } else {
-            console.log('Error: ' + error.message);
+            terminal.writeLine('Error: ' + error.message);
           }
         }
 
-        console.log(colors.red(`rush ${this.actionName} - Errors! (${stopwatch.toString()})`));
+        terminal.writeLine(Colors.red(`rush ${this.actionName} - Errors! (${stopwatch.toString()})`));
       }
 
       this._doAfterTask(stopwatch, false);
@@ -229,6 +253,12 @@ export class BulkScriptAction extends BaseScriptAction {
     this._ignoreHooksParameter = this.defineFlagParameter({
       parameterLongName: '--ignore-hooks',
       description: `Skips execution of the "eventHooks" scripts defined in rush.json. Make sure you know what you are skipping.`
+    });
+    this._fillCacheOnlyParameter = this.defineFlagParameter({
+      parameterLongName: '--fill-cache-only',
+      description:
+        'If this paramter is specified, only fill the cache with projects that have already been built. ' +
+        'Do not build any projects.'
     });
 
     this.defineScriptParameters();
