@@ -6,7 +6,9 @@
   "license": "MIT",
   "scripts": {
     "build": "heft build --clean",
-    "start": "node lib/start.js"
+    "start": "node lib/start.js",
+    "_phase:clean": "heft clean",
+    "_phase:compile": "heft build"
   },
   "devDependencies": {
     "@rushstack/eslint-config": "workspace:*",

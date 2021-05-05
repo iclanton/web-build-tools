@@ -5,7 +5,8 @@
   "main": "lib/index.js",
   "license": "MIT",
   "scripts": {
-    "build": "gulp test --clean"
+    "build": "gulp test --clean",
+    "_phase:compile": "gulp test --clean"
   },
   "devDependencies": {
     "@microsoft/node-library-build": "workspace:*",

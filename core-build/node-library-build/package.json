@@ -10,7 +10,8 @@
     "url": "https://github.com/microsoft/rushstack/tree/master/core-build/node-library-build"
   },
   "scripts": {
-    "build": "gulp --clean"
+    "build": "gulp --clean",
+    "_phase:compile": "gulp --clean"
   },
   "dependencies": {
     "@microsoft/gulp-core-build": "workspace:*",

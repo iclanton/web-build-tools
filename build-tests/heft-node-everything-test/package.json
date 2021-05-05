@@ -6,7 +6,10 @@
   "main": "lib/index.js",
   "license": "MIT",
   "scripts": {
-    "build": "heft test --clean --verbose"
+    "build": "heft test --clean --verbose",
+    "_phase:clean": "heft clean",
+    "_phase:compile": "heft build",
+    "_phase:test": "heft test --no-build"
   },
   "devDependencies": {
     "@microsoft/api-extractor": "workspace:*",

@@ -6,7 +6,8 @@
   "module": "lib-es6/test.js",
   "private": true,
   "scripts": {
-    "build": "gulp --clean"
+    "build": "gulp --clean",
+    "_phase:compile": "gulp --clean"
   },
   "devDependencies": {
     "@microsoft/load-themed-styles": "workspace:*",

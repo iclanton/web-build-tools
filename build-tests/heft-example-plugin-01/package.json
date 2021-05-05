@@ -7,7 +7,9 @@
   "typings": "./lib/index.d.ts",
   "scripts": {
     "build": "heft build --clean",
-    "start": "heft start"
+    "start": "heft start",
+    "_phase:clean": "heft clean",
+    "_phase:compile": "heft build"
   },
   "dependencies": {
     "tapable": "1.1.3"

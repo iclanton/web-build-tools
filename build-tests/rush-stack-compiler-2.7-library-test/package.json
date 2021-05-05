@@ -6,7 +6,8 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "build": "gulp test --clean"
+    "build": "gulp test --clean",
+    "_phase:compile": "gulp test --clean"
   },
   "devDependencies": {
     "@microsoft/node-library-build": "workspace:*",

@@ -7,7 +7,8 @@
     "url": "https://github.com/microsoft/rushstack/tree/master/core-build/gulp-core-build"
   },
   "scripts": {
-    "build": "gulp --clean"
+    "build": "gulp --clean",
+    "_phase:compile": "gulp --clean"
   },
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",

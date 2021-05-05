@@ -10,7 +10,10 @@
   "typings": "dist/rushell.d.ts",
   "scripts": {
     "build": "heft test --clean",
-    "start": "heft test --watch"
+    "start": "heft test --watch",
+    "_phase:clean": "heft clean",
+    "_phase:compile": "heft build",
+    "_phase:test": "heft test --no-build"
   },
   "license": "MIT",
   "dependencies": {

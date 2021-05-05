@@ -10,7 +10,9 @@
     "url": "https://github.com/microsoft/rushstack/tree/master/webpack/localization-plugin"
   },
   "scripts": {
-    "build": "heft build --clean"
+    "build": "heft build --clean",
+    "_phase:clean": "heft clean",
+    "_phase:compile": "heft build"
   },
   "peerDependencies": {
     "@rushstack/set-webpack-public-path-plugin": "^3.2.30",

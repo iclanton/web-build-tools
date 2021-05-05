@@ -5,7 +5,10 @@
   "private": true,
   "scripts": {
     "build": "heft test --clean",
-    "start": "heft start"
+    "start": "heft start",
+    "_phase:clean": "heft clean",
+    "_phase:compile": "heft build",
+    "_phase:test": "heft test --no-build"
   },
   "devDependencies": {
     "@rushstack/eslint-config": "workspace:*",

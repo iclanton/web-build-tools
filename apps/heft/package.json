@@ -29,7 +29,10 @@
   "license": "MIT",
   "scripts": {
     "build": "heft test --clean",
-    "start": "heft test --clean --watch"
+    "start": "heft test --clean --watch",
+    "_phase:clean": "heft clean",
+    "_phase:compile": "heft build",
+    "_phase:test": "heft test --no-build"
   },
   "dependencies": {
     "@jest/core": "~25.4.0",

@@ -6,7 +6,8 @@
   "license": "MIT",
   "scripts": {
     "build": "gulp test --clean",
-    "lint": "node node_modules/@microsoft/rush-stack-compiler-3.5/bin/rush-eslint -f unix \"src/**/*.{ts,tsx}\""
+    "lint": "node node_modules/@microsoft/rush-stack-compiler-3.5/bin/rush-eslint -f unix \"src/**/*.{ts,tsx}\"",
+    "_phase:compile": "gulp test --clean"
   },
   "devDependencies": {
     "@microsoft/node-library-build": "workspace:*",

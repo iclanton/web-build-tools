@@ -7,7 +7,9 @@
     "url": "https://github.com/microsoft/rushstack/tree/master/libraries/load-themed-styles"
   },
   "scripts": {
-    "build": "heft build --clean"
+    "build": "heft build --clean",
+    "_phase:clean": "heft clean",
+    "_phase:compile": "heft build"
   },
   "main": "lib/index.js",
   "module": "lib-es6/index.js",

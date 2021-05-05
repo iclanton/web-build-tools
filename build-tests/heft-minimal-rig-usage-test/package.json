@@ -5,7 +5,9 @@
   "private": true,
   "license": "MIT",
   "scripts": {
-    "build": "heft build --clean --verbose"
+    "build": "heft build --clean --verbose",
+    "_phase:clean": "heft clean",
+    "_phase:compile": "heft build"
   },
   "devDependencies": {
     "@rushstack/heft": "workspace:*",

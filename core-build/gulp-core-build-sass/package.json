@@ -10,7 +10,8 @@
     "url": "https://github.com/microsoft/rushstack/tree/master/core-build/gulp-core-build-sass"
   },
   "scripts": {
-    "build": "gulp test --clean"
+    "build": "gulp test --clean",
+    "_phase:compile": "gulp test --clean"
   },
   "dependencies": {
     "@microsoft/gulp-core-build": "workspace:*",

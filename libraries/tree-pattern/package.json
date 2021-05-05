@@ -9,7 +9,10 @@
     "url": "https://github.com/microsoft/rushstack/tree/master/libraries/tree-pattern"
   },
   "scripts": {
-    "build": "heft test --clean"
+    "build": "heft test --clean",
+    "_phase:clean": "heft clean",
+    "_phase:compile": "heft build",
+    "_phase:test": "heft test --no-build"
   },
   "dependencies": {},
   "devDependencies": {

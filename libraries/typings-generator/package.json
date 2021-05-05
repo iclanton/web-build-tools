@@ -15,7 +15,9 @@
     "url": "https://github.com/microsoft/rushstack/tree/master/libraries/typings-generator"
   },
   "scripts": {
-    "build": "heft build --clean"
+    "build": "heft build --clean",
+    "_phase:clean": "heft clean",
+    "_phase:compile": "heft build"
   },
   "dependencies": {
     "@rushstack/node-core-library": "workspace:*",

@@ -5,7 +5,8 @@
   "private": true,
   "scripts": {
     "build": "node build.js",
-    "serve": "node serve.js"
+    "serve": "node serve.js",
+    "_phase:compile": "node build.js"
   },
   "dependencies": {
     "@microsoft/rush-stack-compiler-3.9": "workspace:*",

@@ -12,7 +12,9 @@
   "engineStrict": true,
   "homepage": "https://rushstack.io",
   "scripts": {
-    "build": "heft build --clean"
+    "build": "heft build --clean",
+    "_phase:clean": "heft clean",
+    "_phase:compile": "heft build"
   },
   "bin": {
     "rundown": "./bin/rundown"
